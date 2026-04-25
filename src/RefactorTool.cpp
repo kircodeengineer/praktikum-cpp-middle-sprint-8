@@ -1,5 +1,6 @@
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/ASTMatchers/ASTMatchers.h"
+#include "clang/Basic/AttrKinds.h"
 #include "clang/Frontend/FrontendActions.h"
 #include "clang/Rewrite/Core/Rewriter.h"
 #include "clang/Tooling/CommonOptionsParser.h"
@@ -7,6 +8,7 @@
 #include "clang/Tooling/Tooling.h"
 #include "llvm/Support/CommandLine.h"
 
+#include <ranges>
 #include <unordered_set>
 
 #include "RefactorTool.h"
@@ -85,9 +87,36 @@ void RefactorHandler::handle_nv_dtor(const CXXDestructorDecl *Dtor, DiagnosticsE
 
 // todo: необходимо реализовать обработку случая отсутствие override
 void RefactorHandler::handle_miss_override(const CXXMethodDecl *Method, DiagnosticsEngine &Diag, SourceManager &SM) {
-    // Реализуйте Ваш код ниже
-    const unsigned DiagID = Diag.getCustomDiagID(DiagnosticsEngine::Remark, "Объявлен метод");
-    Diag.Report(Method->getLocation(), DiagID);
+    auto Loc{Method->getLocation()};
+    if (!Loc.isValid() || !SM.isInMainFile(Loc))
+        return;
+
+    auto Offset{SM.getFileOffset(Loc)};
+    if (overrideLocations.count(Offset))
+        return;
+
+    overrideLocations.insert(Offset);
+
+    auto EndLoc{Method->getSourceRange().getEnd()};
+    const auto *Ptr{SM.getCharacterData(EndLoc)};
+    if (!Ptr)
+        return;
+
+    for (auto i : std::views::iota(0, 256)) {
+        if (Ptr - i < SM.getCharacterData(SM.getLocForStartOfFile(SM.getFileID(EndLoc))))
+            break;
+
+        if (Ptr[-i] == ')') {
+            auto InsertLoc{EndLoc.getLocWithOffset(-i + 1)};
+            Rewrite.InsertText(InsertLoc, " override", true);
+            Diag.Report(Loc, Diag.getCustomDiagID(DiagnosticsEngine::Remark, "Добавлен 'override' к методу %0"))
+                << Method->getName();
+            return;
+        }
+    }
+
+    Diag.Report(Loc, Diag.getCustomDiagID(DiagnosticsEngine::Remark, "Не удалось найти ')' для метода %0"))
+        << Method->getName();
 }
 
 // todo: необходимо реализовать обработку случая отсутствие & в range-for
@@ -111,10 +140,7 @@ auto NvDtorMatcher() {
         .bind("nonVirtualDtor");
 }
 
-auto NoOverrideMatcher() {
-    // todo: замените код ниже, на свою реализацию, необходимо реализовать матчеры для поиска методов без override
-    return cxxMethodDecl().bind("methodDecl");
-}
+auto NoOverrideMatcher() { return cxxMethodDecl(isOverride(), unless(isImplicit())).bind("methodDecl"); }
 
 auto NoRefConstVarInRangeLoopMatcher() {
     // todo: замените код ниже, на свою реализацию, необходимо реализовать матчеры для поиска range-for без &
