@@ -97,6 +97,13 @@ void RefactorHandler::handle_miss_override(const CXXMethodDecl *Method, Diagnost
 
     overrideLocations.insert(Offset);
 
+    std::string MethodName;
+    if (const auto *Dtor = dyn_cast<CXXDestructorDecl>(Method)) {
+        MethodName = "~" + Dtor->getParent()->getNameAsString();
+    } else {
+        MethodName = Method->getNameAsString();
+    }
+
     auto EndLoc{Method->getSourceRange().getEnd()};
     const auto *Ptr{SM.getCharacterData(EndLoc)};
     if (!Ptr)
@@ -111,13 +118,13 @@ void RefactorHandler::handle_miss_override(const CXXMethodDecl *Method, Diagnost
             auto InsertLoc{EndLoc.getLocWithOffset(-i + 1)};
             Rewrite.InsertText(InsertLoc, " override", true);
             Diag.Report(Loc, Diag.getCustomDiagID(DiagnosticsEngine::Remark, "Добавлен 'override' к методу %0"))
-                << Method->getName();
+                << MethodName;
             return;
         }
     }
 
     Diag.Report(Loc, Diag.getCustomDiagID(DiagnosticsEngine::Remark, "Не удалось найти ')' для метода %0"))
-        << Method->getName();
+        << MethodName;
 }
 
 // todo: необходимо реализовать обработку случая отсутствие & в range-for
@@ -155,7 +162,12 @@ auto NvDtorMatcher() {
         .bind("nonVirtualDtor");
 }
 
-auto NoOverrideMatcher() { return cxxMethodDecl(isOverride(), unless(isImplicit())).bind("methodDecl"); }
+auto NoOverrideMatcher() {
+    return cxxMethodDecl(isOverride(), unless(isImplicit()),
+                         unless(cxxDestructorDecl())
+                         )
+        .bind("methodDecl");
+}
 
 auto NoRefConstVarInRangeLoopMatcher() {
     return cxxForRangeStmt(hasLoopVariable(
