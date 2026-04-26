@@ -102,7 +102,8 @@ void RefactorHandler::handle_miss_override(const CXXMethodDecl *Method, Diagnost
     if (!Ptr)
         return;
 
-    for (auto i : std::views::iota(0, 256)) {
+    const std::int32_t MAX_INSTRUCTION_LENGTH{256};
+    for (auto i : std::views::iota(0, MAX_INSTRUCTION_LENGTH)) {
         if (Ptr - i < SM.getCharacterData(SM.getLocForStartOfFile(SM.getFileID(EndLoc))))
             break;
 
