@@ -35,7 +35,7 @@ void RefactorHandler::run(const MatchFinder::MatchResult &Result) {
             handle_miss_override(Method, Diag, SM);
     }
 
-    const auto *LoopVar{Result.Nodes.getNodeAs<VarDecl>("VarDecl")};
+    const auto *LoopVar{Result.Nodes.getNodeAs<VarDecl>("loopVar")};
     if (LoopVar)
         handle_crange_for(LoopVar, Diag, SM);
 }
@@ -122,9 +122,23 @@ void RefactorHandler::handle_miss_override(const CXXMethodDecl *Method, Diagnost
 
 // todo: необходимо реализовать обработку случая отсутствие & в range-for
 void RefactorHandler::handle_crange_for(const VarDecl *LoopVar, DiagnosticsEngine &Diag, SourceManager &SM) {
-    // Реализуйте Ваш код ниже
-    const unsigned DiagID = Diag.getCustomDiagID(DiagnosticsEngine::Remark, "Объявлена переменная");
-    Diag.Report(LoopVar->getLocation(), DiagID);
+    auto VarLoc{LoopVar->getLocation()};
+
+    if (!VarLoc.isValid() || !SM.isInMainFile(VarLoc))
+        return;
+
+    auto InsertFailed{Rewrite.InsertText(VarLoc, "&", false)};
+
+    if (InsertFailed) {
+        Diag.Report(LoopVar->getLocation(),
+                    Diag.getCustomDiagID(DiagnosticsEngine::Error, "Не удалось вставить '&' перед переменной '%0'"))
+            << LoopVar->getName();
+        return;
+    }
+
+    Diag.Report(LoopVar->getLocation(),
+                Diag.getCustomDiagID(DiagnosticsEngine::Remark, "Добавлена ссылка '&' к переменной '%0' в range-for"))
+        << LoopVar->getName();
 }
 
 // todo: ниже необходимо реализовать матчеры для поиска узлов AST
@@ -144,8 +158,9 @@ auto NvDtorMatcher() {
 auto NoOverrideMatcher() { return cxxMethodDecl(isOverride(), unless(isImplicit())).bind("methodDecl"); }
 
 auto NoRefConstVarInRangeLoopMatcher() {
-    // todo: замените код ниже, на свою реализацию, необходимо реализовать матчеры для поиска range-for без &
-    return varDecl().bind("VarDecl");
+    return cxxForRangeStmt(hasLoopVariable(
+        varDecl(hasType(isConstQualified()), unless(hasType(referenceType())), unless(hasType(builtinType())))
+            .bind("loopVar")));
 }
 
 // Конструктор принимает Rewriter для изменения кода.
