@@ -1,0 +1,11 @@
+
+ Performance counter stats for '/workspaces/praktikum-cpp-middle-sprint-8/tests/tests_data/tmp/perf/after/perf_example' (3 runs):
+
+             88.32 msec task-clock                       #    0.986 CPUs utilized               ( +-  5.80% )
+                 4      context-switches                 #   45.289 /sec                        ( +- 58.33% )
+                 0      cpu-migrations                   #    0.000 /sec                      
+              7942      page-faults                      #   89.921 K/sec                       ( +-  0.02% )
+   <not supported>      cycles                                                                
+
+           0.08959 +- 0.00454 seconds time elapsed  ( +-  5.07% )
+

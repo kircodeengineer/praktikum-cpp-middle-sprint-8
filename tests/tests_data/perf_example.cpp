@@ -2,11 +2,11 @@
 #include <string>
 
 struct HeavyObject {
-    std::string data[1000];  // Тяжёлый объект для имитации копирования
+    std::string data[100];  // Тяжёлый объект для имитации копирования
 };
 
 int main() {
-    std::vector<HeavyObject> vec(100000);  // Большой контейнер
+    std::vector<HeavyObject> vec(10000);  // Большой контейнер
     for (const auto obj : vec) {  // Копирование без &
         const auto& data = obj.data[0];
     }
