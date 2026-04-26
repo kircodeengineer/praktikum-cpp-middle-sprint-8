@@ -55,6 +55,6 @@ public:
     virtual bool BeginSourceFileAction(clang::CompilerInstance &CI) override;
     virtual void EndSourceFileAction() override;
 
-private:
+protected:
     clang::Rewriter RewriterForCodeRefactor;
 };

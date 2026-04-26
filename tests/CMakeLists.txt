@@ -31,10 +31,11 @@ FetchContent_MakeAvailable(googletest)
 
 # Рекурсивно ищем все используемые в тестах .cpp файлы
 file(GLOB TEST_SRC_FILES "${CMAKE_SOURCE_DIR}/tests/*.cpp")
+list(APPEND TEST_SRC_FILES "${CMAKE_CURRENT_SOURCE_DIR}/../src/RefactorTool.cpp")
 
 add_executable(${PROJECT_NAME}_tests "${TEST_SRC_FILES}")
-target_link_libraries(${PROJECT_NAME}_tests PRIVATE gtest_main)
-target_include_directories(${PROJECT_NAME}_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(${PROJECT_NAME}_tests PRIVATE gtest_main clangTooling clangASTMatchers clangBasic)
+target_include_directories(${PROJECT_NAME}_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../include)
 
 
 include(GoogleTest)
